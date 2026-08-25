@@ -1409,10 +1409,8 @@ class H1GeneratorTab(BaseTabPlugin):
             f"{css}\n"
             "</style>\n\n"
             f'<h1 class="rt-h1-style-{style_id}" '
-            f'style="'
-            f'font-family: {font_css}; '
-            f'text-align: {alignment_css};'
-            f'">'
+            f"style='font-family: {font_css}; "
+            f"text-align: {alignment_css};'>"
             f"{title}"
             f"</h1>"
         )
