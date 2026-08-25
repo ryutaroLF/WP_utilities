@@ -115,8 +115,6 @@ STYLE_DEFS = {
 FONT_DEFS = {
     "old_english": {
         "label": "Old English",
-        # Old English is generated as Unicode Fraktur characters.
-        # This avoids depending on a locally installed web font.
         "css": '"Cambria Math", "STIX Two Math", "Noto Sans Math", serif',
         "transform": "fraktur",
     },
@@ -134,6 +132,23 @@ FONT_DEFS = {
         "label": "Times New Roman",
         "css": '"Times New Roman", Times, serif',
         "transform": None,
+    },
+    "zen_kurenaido": {
+        "label": "Zen Kurenaido",
+        "css": '"Zen Kurenaido", sans-serif',
+        "transform": None,
+    },
+}
+
+
+ALIGNMENT_DEFS = {
+    "left": {
+        "label": "Left aligned",
+        "css": "left",
+    },
+    "center": {
+        "label": "Centered",
+        "css": "center",
     },
 }
 
@@ -182,6 +197,7 @@ class StylePreview(tk.Canvas):
         self.selected = False
         self.preview_text = "Heading"
         self.font_key = "arial"
+        self.alignment = "left"
 
         self.bind("<Button-1>", self._on_click)
         self.bind("<Configure>", lambda _event: self.redraw())
@@ -195,27 +211,49 @@ class StylePreview(tk.Canvas):
         self.selected = selected
         self.redraw()
 
-    def set_preview(self, text: str, font_key: str) -> None:
+    def set_preview(self, text: str, font_key: str, alignment: str) -> None:
         self.preview_text = text or "Heading"
         self.font_key = font_key
+        self.alignment = alignment
         self.redraw()
 
     def _font_tuple(self, size: int, weight: str = "bold"):
-        # For the Old English option the displayed characters themselves are
-        # Fraktur Unicode, so the OS can choose a suitable fallback glyph font.
         if self.font_key == "arial":
             return ("Arial", size, weight)
         if self.font_key == "georgia":
             return ("Georgia", size, weight)
         if self.font_key == "times":
             return ("Times New Roman", size, weight)
+
         return ("Cambria Math", size, weight)
 
     def _display_text(self) -> str:
         text = self.preview_text
+
         if self.font_key == "old_english":
             return to_fraktur(text)
+
         return text
+
+    def _text_position(
+        self,
+        x1: float,
+        x2: float,
+        y1: float,
+        y2: float,
+    ):
+        if self.alignment == "center":
+            return (
+                (x1 + x2) / 2,
+                (y1 + y2) / 2,
+                "center",
+            )
+
+        return (
+            x1 + 16,
+            (y1 + y2) / 2,
+            "w",
+        )
 
     def redraw(self) -> None:
         self.delete("all")
@@ -223,7 +261,6 @@ class StylePreview(tk.Canvas):
         w = max(self.winfo_width(), self.WIDTH)
         h = max(self.winfo_height(), self.HEIGHT)
 
-        # Card background / selected state.
         border = "#3b82f6" if self.selected else "#d8d8d8"
         border_width = 3 if self.selected else 1
 
@@ -245,8 +282,17 @@ class StylePreview(tk.Canvas):
         text = self._display_text()
         text_font = self._font_tuple(18, "bold")
 
+        tx, ty, anchor = self._text_position(
+            x1,
+            x2,
+            y1,
+            y2,
+        )
+
+        # ------------------------------------------------------------
+        # Style 1
+        # ------------------------------------------------------------
         if self.style_id == "1":
-            # #dfefff + white dashed border + folded corner.
             self.create_rectangle(
                 x1,
                 y1,
@@ -258,7 +304,6 @@ class StylePreview(tk.Canvas):
                 dash=(5, 4),
             )
 
-            # Approximate the 5px box-shadow as an outer blue border.
             self.create_rectangle(
                 x1 - 5,
                 y1 - 5,
@@ -268,7 +313,6 @@ class StylePreview(tk.Canvas):
                 width=5,
             )
 
-            # Fold at top-left.
             self.create_polygon(
                 x1 - 7,
                 y1 - 7,
@@ -281,13 +325,17 @@ class StylePreview(tk.Canvas):
             )
 
             self.create_text(
-                (x1 + x2) / 2,
-                (y1 + y2) / 2,
+                tx,
+                ty,
                 text=text,
+                anchor=anchor,
                 fill="#454545",
                 font=text_font,
             )
 
+        # ------------------------------------------------------------
+        # Style 2
+        # ------------------------------------------------------------
         elif self.style_id == "2":
             self.create_rectangle(
                 x1 - 5,
@@ -297,6 +345,7 @@ class StylePreview(tk.Canvas):
                 outline="#dfefff",
                 width=5,
             )
+
             self.create_rectangle(
                 x1,
                 y1,
@@ -307,27 +356,68 @@ class StylePreview(tk.Canvas):
                 width=2,
                 dash=(5, 4),
             )
+
             self.create_text(
-                (x1 + x2) / 2,
-                (y1 + y2) / 2,
+                tx,
+                ty,
                 text=text,
+                anchor=anchor,
                 fill="#111111",
                 font=text_font,
             )
 
+        # ------------------------------------------------------------
+        # Style 3
+        # ------------------------------------------------------------
         elif self.style_id == "3":
-            self.create_line(x1, y1, x2, y1, fill="#000000", width=2)
-            self.create_line(x1, y2, x2, y2, fill="#000000", width=2)
-            self.create_line(x1 + 7, y1 - 7, x1 + 7, y2 + 7, fill="#000000", width=2)
-            self.create_line(x2 - 7, y1 - 7, x2 - 7, y2 + 7, fill="#000000", width=2)
+            self.create_line(
+                x1,
+                y1,
+                x2,
+                y1,
+                fill="#000000",
+                width=2,
+            )
+
+            self.create_line(
+                x1,
+                y2,
+                x2,
+                y2,
+                fill="#000000",
+                width=2,
+            )
+
+            self.create_line(
+                x1 + 7,
+                y1 - 7,
+                x1 + 7,
+                y2 + 7,
+                fill="#000000",
+                width=2,
+            )
+
+            self.create_line(
+                x2 - 7,
+                y1 - 7,
+                x2 - 7,
+                y2 + 7,
+                fill="#000000",
+                width=2,
+            )
+
             self.create_text(
-                (x1 + x2) / 2,
-                (y1 + y2) / 2,
+                tx,
+                ty,
                 text=text,
+                anchor=anchor,
                 fill="#111111",
                 font=text_font,
             )
 
+        # ------------------------------------------------------------
+        # Style 4
+        # ------------------------------------------------------------
         elif self.style_id == "4":
             self.create_rectangle(
                 x1,
@@ -338,10 +428,11 @@ class StylePreview(tk.Canvas):
                 width=2,
             )
 
-            # Two circle ornaments outside opposite corners.
             r = 6
+
             cx1 = x1 - 6
             cy1 = y1 - 6
+
             cx2 = x2 + 6
             cy2 = y2 + 6
 
@@ -353,6 +444,7 @@ class StylePreview(tk.Canvas):
                 outline="#000000",
                 width=2,
             )
+
             self.create_oval(
                 cx2 - r,
                 cy2 - r,
@@ -361,10 +453,12 @@ class StylePreview(tk.Canvas):
                 outline="#000000",
                 width=2,
             )
+
             self.create_text(
-                (x1 + x2) / 2,
-                (y1 + y2) / 2,
+                tx,
+                ty,
                 text=text,
+                anchor=anchor,
                 fill="#111111",
                 font=text_font,
             )
@@ -375,6 +469,7 @@ class StylePreview(tk.Canvas):
 # ============================================================
 
 class H1GeneratorTab(BaseTabPlugin):
+
     TAB_TITLE = "H1 Generator"
     ORDER = 90
 
@@ -383,24 +478,63 @@ class H1GeneratorTab(BaseTabPlugin):
     def __init__(self, app, tabview) -> None:
         super().__init__(app, tabview)
 
-        self.style_var = tk.StringVar(master=app, value="1")
-        self.font_var = tk.StringVar(master=app, value="old_english")
-        self.text_var = tk.StringVar(master=app, value="British Band")
+        self.style_var = tk.StringVar(
+            master=app,
+            value="1",
+        )
+
+        self.font_var = tk.StringVar(
+            master=app,
+            value="old_english",
+        )
+
+        self.alignment_var = tk.StringVar(
+            master=app,
+            value="left",
+        )
+
+        self.text_var = tk.StringVar(
+            master=app,
+            value="British Band",
+        )
 
         self.preview_widgets: dict[str, StylePreview] = {}
-        self.font_buttons: dict[str, ctk.CTkButton] = {}
+
+        self.font_buttons: dict[
+            str,
+            ctk.CTkButton,
+        ] = {}
+
+        self.alignment_buttons: dict[
+            str,
+            ctk.CTkButton,
+        ] = {}
 
         self._copy_after_id = None
 
     def create_ui(self) -> None:
-        tab = self.tab
-        tab.grid_columnconfigure(0, weight=1)
-        tab.grid_rowconfigure(1, weight=1)
 
-        # ------------------------------------------------------------
+        tab = self.tab
+
+        tab.grid_columnconfigure(
+            0,
+            weight=1,
+        )
+
+        tab.grid_rowconfigure(
+            1,
+            weight=1,
+        )
+
+        # ============================================================
         # Header
-        # ------------------------------------------------------------
-        header = ctk.CTkFrame(tab, fg_color="transparent")
+        # ============================================================
+
+        header = ctk.CTkFrame(
+            tab,
+            fg_color="transparent",
+        )
+
         header.grid(
             row=0,
             column=0,
@@ -408,25 +542,55 @@ class H1GeneratorTab(BaseTabPlugin):
             padx=22,
             pady=(16, 10),
         )
-        header.grid_columnconfigure(0, weight=1)
 
-        title_box = ctk.CTkFrame(header, fg_color="transparent")
-        title_box.grid(row=0, column=0, sticky="w")
+        header.grid_columnconfigure(
+            0,
+            weight=1,
+        )
+
+        title_box = ctk.CTkFrame(
+            header,
+            fg_color="transparent",
+        )
+
+        title_box.grid(
+            row=0,
+            column=0,
+            sticky="w",
+        )
 
         ctk.CTkLabel(
             title_box,
             text="H1 Generator",
             anchor="w",
-            font=ctk.CTkFont(size=23, weight="bold"),
-        ).grid(row=0, column=0, sticky="w")
+            font=ctk.CTkFont(
+                size=23,
+                weight="bold",
+            ),
+        ).grid(
+            row=0,
+            column=0,
+            sticky="w",
+        )
 
         ctk.CTkLabel(
             title_box,
-            text="Choose a CSS style and font, type a heading, then paste into a WordPress Custom HTML block.",
+            text=(
+                "Choose a CSS style, font, and alignment, "
+                "type a heading, then paste into a "
+                "WordPress Custom HTML block."
+            ),
             anchor="w",
             text_color=("gray40", "gray68"),
-            font=ctk.CTkFont(size=12),
-        ).grid(row=1, column=0, sticky="w", pady=(2, 0))
+            font=ctk.CTkFont(
+                size=12,
+            ),
+        ).grid(
+            row=1,
+            column=0,
+            sticky="w",
+            pady=(2, 0),
+        )
 
         self.copy_status = ctk.CTkLabel(
             header,
@@ -435,18 +599,29 @@ class H1GeneratorTab(BaseTabPlugin):
             corner_radius=15,
             fg_color=("gray88", "gray24"),
             text_color=("gray30", "gray78"),
-            font=ctk.CTkFont(size=12, weight="bold"),
+            font=ctk.CTkFont(
+                size=12,
+                weight="bold",
+            ),
         )
-        self.copy_status.grid(row=0, column=1, rowspan=2, sticky="e")
 
-        # ------------------------------------------------------------
+        self.copy_status.grid(
+            row=0,
+            column=1,
+            rowspan=2,
+            sticky="e",
+        )
+
+        # ============================================================
         # Scrollable page
-        # ------------------------------------------------------------
+        # ============================================================
+
         page = ctk.CTkScrollableFrame(
             tab,
             corner_radius=12,
             fg_color="transparent",
         )
+
         page.grid(
             row=1,
             column=0,
@@ -454,12 +629,21 @@ class H1GeneratorTab(BaseTabPlugin):
             padx=14,
             pady=(0, 14),
         )
-        page.grid_columnconfigure(0, weight=1)
 
-        # ------------------------------------------------------------
+        page.grid_columnconfigure(
+            0,
+            weight=1,
+        )
+
+        # ============================================================
         # 1. CSS style
-        # ------------------------------------------------------------
-        style_card = self._card(page, "1. CSS style")
+        # ============================================================
+
+        style_card = self._card(
+            page,
+            "1. CSS style",
+        )
+
         style_card.grid(
             row=0,
             column=0,
@@ -467,7 +651,11 @@ class H1GeneratorTab(BaseTabPlugin):
             pady=(0, 10),
         )
 
-        previews = ctk.CTkFrame(style_card, fg_color="transparent")
+        previews = ctk.CTkFrame(
+            style_card,
+            fg_color="transparent",
+        )
+
         previews.grid(
             row=1,
             column=0,
@@ -477,19 +665,29 @@ class H1GeneratorTab(BaseTabPlugin):
         )
 
         for col in range(4):
-            previews.grid_columnconfigure(col, weight=1)
+            previews.grid_columnconfigure(
+                col,
+                weight=1,
+            )
 
-        for col, style_id in enumerate(("1", "2", "3", "4")):
+        for col, style_id in enumerate(
+            ("1", "2", "3", "4")
+        ):
+
             wrapper = ctk.CTkFrame(
                 previews,
                 corner_radius=10,
                 fg_color=("gray97", "gray16"),
             )
+
             wrapper.grid(
                 row=0,
                 column=col,
                 sticky="nsew",
-                padx=(0 if col == 0 else 5, 0 if col == 3 else 5),
+                padx=(
+                    0 if col == 0 else 5,
+                    0 if col == 3 else 5,
+                ),
             )
 
             canvas = StylePreview(
@@ -497,27 +695,51 @@ class H1GeneratorTab(BaseTabPlugin):
                 style_id=style_id,
                 command=self._select_style,
             )
-            canvas.pack(fill="x", expand=True, padx=7, pady=(7, 3))
 
-            # Make the label clickable too.
+            canvas.pack(
+                fill="x",
+                expand=True,
+                padx=7,
+                pady=(7, 3),
+            )
+
             label = ctk.CTkLabel(
                 wrapper,
-                text=f"{style_id}. {STYLE_DEFS[style_id]['name']}",
-                font=ctk.CTkFont(size=11, weight="bold"),
+                text=(
+                    f"{style_id}. "
+                    f"{STYLE_DEFS[style_id]['name']}"
+                ),
+                font=ctk.CTkFont(
+                    size=11,
+                    weight="bold",
+                ),
                 cursor="hand2",
             )
-            label.pack(padx=6, pady=(0, 7))
-            label.bind(
-                "<Button-1>",
-                lambda _event, sid=style_id: self._select_style(sid),
+
+            label.pack(
+                padx=6,
+                pady=(0, 7),
             )
 
-            self.preview_widgets[style_id] = canvas
+            label.bind(
+                "<Button-1>",
+                lambda _event, sid=style_id:
+                    self._select_style(sid),
+            )
 
-        # ------------------------------------------------------------
+            self.preview_widgets[
+                style_id
+            ] = canvas
+
+        # ============================================================
         # 2. Font
-        # ------------------------------------------------------------
-        font_card = self._card(page, "2. Font")
+        # ============================================================
+
+        font_card = self._card(
+            page,
+            "2. Font",
+        )
+
         font_card.grid(
             row=1,
             column=0,
@@ -525,7 +747,11 @@ class H1GeneratorTab(BaseTabPlugin):
             pady=(0, 10),
         )
 
-        font_row = ctk.CTkFrame(font_card, fg_color="transparent")
+        font_row = ctk.CTkFrame(
+            font_card,
+            fg_color="transparent",
+        )
+
         font_row.grid(
             row=1,
             column=0,
@@ -534,13 +760,29 @@ class H1GeneratorTab(BaseTabPlugin):
             pady=(2, 14),
         )
 
-        for col in range(len(FONT_DEFS)):
-            font_row.grid_columnconfigure(col, weight=1)
+        for col in range(
+            len(FONT_DEFS)
+        ):
+            font_row.grid_columnconfigure(
+                col,
+                weight=1,
+            )
 
-        for col, (font_key, info) in enumerate(FONT_DEFS.items()):
-            button_text = info["label"]
+        for col, (
+            font_key,
+            info,
+        ) in enumerate(
+            FONT_DEFS.items()
+        ):
+
+            button_text = info[
+                "label"
+            ]
+
             if font_key == "old_english":
-                button_text = to_fraktur("Old English")
+                button_text = to_fraktur(
+                    "Old English"
+                )
 
             button = ctk.CTkButton(
                 font_row,
@@ -549,29 +791,57 @@ class H1GeneratorTab(BaseTabPlugin):
                 corner_radius=10,
                 fg_color="transparent",
                 border_width=1,
-                text_color=("gray20", "gray88"),
-                hover_color=("gray88", "gray24"),
-                command=lambda key=font_key: self._select_font(key),
+                text_color=(
+                    "gray20",
+                    "gray88",
+                ),
+                hover_color=(
+                    "gray88",
+                    "gray24",
+                ),
+                command=(
+                    lambda key=font_key:
+                        self._select_font(
+                            key
+                        )
+                ),
             )
+
             button.grid(
                 row=0,
                 column=col,
                 sticky="ew",
-                padx=(0 if col == 0 else 5, 0 if col == len(FONT_DEFS) - 1 else 5),
+                padx=(
+                    0
+                    if col == 0
+                    else 5,
+                    0
+                    if col
+                    == len(
+                        FONT_DEFS
+                    ) - 1
+                    else 5,
+                ),
             )
-            self.font_buttons[font_key] = button
+
+            self.font_buttons[
+                font_key
+            ] = button
 
         ctk.CTkLabel(
             font_card,
             text=(
                 "Old English uses Unicode Fraktur characters "
-                "(e.g. British Band → 𝔅𝔯𝔦𝔱𝔦𝔰𝔥 𝔅𝔞𝔫𝔡), "
+                "(e.g. British Band → "
+                "𝔅𝔯𝔦𝔱𝔦𝔰𝔥 𝔅𝔞𝔫𝔡), "
                 "so no web-font file is required."
             ),
             anchor="w",
             justify="left",
             text_color=("gray44", "gray64"),
-            font=ctk.CTkFont(size=11),
+            font=ctk.CTkFont(
+                size=11,
+            ),
         ).grid(
             row=2,
             column=0,
@@ -580,25 +850,132 @@ class H1GeneratorTab(BaseTabPlugin):
             pady=(0, 12),
         )
 
-        # ------------------------------------------------------------
-        # 3. H1 text
-        # ------------------------------------------------------------
-        text_card = self._card(page, "3. H1 text")
-        text_card.grid(
+        # ============================================================
+        # 3. Alignment
+        # ============================================================
+
+        alignment_card = self._card(
+            page,
+            "3. Alignment",
+        )
+
+        alignment_card.grid(
             row=2,
             column=0,
             sticky="ew",
             pady=(0, 10),
         )
-        text_card.grid_columnconfigure(0, weight=1)
+
+        alignment_row = ctk.CTkFrame(
+            alignment_card,
+            fg_color="transparent",
+        )
+
+        alignment_row.grid(
+            row=1,
+            column=0,
+            sticky="ew",
+            padx=14,
+            pady=(2, 14),
+        )
+
+        alignment_keys = list(
+            ALIGNMENT_DEFS.keys()
+        )
+
+        for col in range(
+            len(alignment_keys)
+        ):
+            alignment_row.grid_columnconfigure(
+                col,
+                weight=1,
+            )
+
+        for col, alignment_key in enumerate(
+            alignment_keys
+        ):
+
+            info = ALIGNMENT_DEFS[
+                alignment_key
+            ]
+
+            button = ctk.CTkButton(
+                alignment_row,
+                text=info["label"],
+                height=44,
+                corner_radius=10,
+                fg_color="transparent",
+                border_width=1,
+                text_color=(
+                    "gray20",
+                    "gray88",
+                ),
+                hover_color=(
+                    "gray88",
+                    "gray24",
+                ),
+                command=(
+                    lambda key=alignment_key:
+                        self._select_alignment(
+                            key
+                        )
+                ),
+            )
+
+            button.grid(
+                row=0,
+                column=col,
+                sticky="ew",
+                padx=(
+                    0
+                    if col == 0
+                    else 5,
+                    0
+                    if col
+                    == len(
+                        alignment_keys
+                    ) - 1
+                    else 5,
+                ),
+            )
+
+            self.alignment_buttons[
+                alignment_key
+            ] = button
+
+        # ============================================================
+        # 4. H1 text
+        # ============================================================
+
+        text_card = self._card(
+            page,
+            "4. H1 text",
+        )
+
+        text_card.grid(
+            row=3,
+            column=0,
+            sticky="ew",
+            pady=(0, 10),
+        )
+
+        text_card.grid_columnconfigure(
+            0,
+            weight=1,
+        )
 
         self.title_entry = ctk.CTkEntry(
             text_card,
             textvariable=self.text_var,
             height=48,
-            font=ctk.CTkFont(size=18),
-            placeholder_text="Type an English H1 title...",
+            font=ctk.CTkFont(
+                size=18,
+            ),
+            placeholder_text=(
+                "Type an English H1 title..."
+            ),
         )
+
         self.title_entry.grid(
             row=1,
             column=0,
@@ -609,10 +986,16 @@ class H1GeneratorTab(BaseTabPlugin):
 
         ctk.CTkLabel(
             text_card,
-            text="After you stop typing for 0.45 s, the generated HTML is copied to the clipboard automatically.",
+            text=(
+                "After you stop typing for 0.45 s, "
+                "the generated HTML is copied "
+                "to the clipboard automatically."
+            ),
             anchor="w",
             text_color=("gray44", "gray64"),
-            font=ctk.CTkFont(size=11),
+            font=ctk.CTkFont(
+                size=11,
+            ),
         ).grid(
             row=2,
             column=0,
@@ -621,19 +1004,32 @@ class H1GeneratorTab(BaseTabPlugin):
             pady=(0, 14),
         )
 
-        # ------------------------------------------------------------
-        # 4. Generated HTML
-        # ------------------------------------------------------------
-        output_card = self._card(page, "4. Generated HTML")
+        # ============================================================
+        # 5. Generated HTML
+        # ============================================================
+
+        output_card = self._card(
+            page,
+            "5. Generated HTML",
+        )
+
         output_card.grid(
-            row=3,
+            row=4,
             column=0,
             sticky="ew",
             pady=(0, 6),
         )
-        output_card.grid_columnconfigure(0, weight=1)
 
-        output_actions = ctk.CTkFrame(output_card, fg_color="transparent")
+        output_card.grid_columnconfigure(
+            0,
+            weight=1,
+        )
+
+        output_actions = ctk.CTkFrame(
+            output_card,
+            fg_color="transparent",
+        )
+
         output_actions.grid(
             row=1,
             column=0,
@@ -641,15 +1037,28 @@ class H1GeneratorTab(BaseTabPlugin):
             padx=14,
             pady=(0, 8),
         )
-        output_actions.grid_columnconfigure(0, weight=1)
+
+        output_actions.grid_columnconfigure(
+            0,
+            weight=1,
+        )
 
         ctk.CTkLabel(
             output_actions,
-            text="Paste this directly into a WordPress Custom HTML block.",
+            text=(
+                "Paste this directly into a "
+                "WordPress Custom HTML block."
+            ),
             anchor="w",
             text_color=("gray42", "gray65"),
-            font=ctk.CTkFont(size=11),
-        ).grid(row=0, column=0, sticky="w")
+            font=ctk.CTkFont(
+                size=11,
+            ),
+        ).grid(
+            row=0,
+            column=0,
+            sticky="w",
+        )
 
         ctk.CTkButton(
             output_actions,
@@ -657,15 +1066,23 @@ class H1GeneratorTab(BaseTabPlugin):
             width=100,
             height=34,
             command=self._copy_now,
-        ).grid(row=0, column=1, sticky="e")
+        ).grid(
+            row=0,
+            column=1,
+            sticky="e",
+        )
 
         self.output_text = ctk.CTkTextbox(
             output_card,
             height=260,
             wrap="none",
             corner_radius=10,
-            font=ctk.CTkFont(family="Consolas", size=12),
+            font=ctk.CTkFont(
+                family="Consolas",
+                size=12,
+            ),
         )
+
         self.output_text.grid(
             row=2,
             column=0,
@@ -674,27 +1091,51 @@ class H1GeneratorTab(BaseTabPlugin):
             pady=(0, 14),
         )
 
-        # React to typing.
-        self.text_var.trace_add("write", self._on_text_changed)
+        # ============================================================
+        # Bind input changes
+        # ============================================================
+
+        self.text_var.trace_add(
+            "write",
+            self._on_text_changed,
+        )
 
         # Initial state.
         self._refresh_selection_ui()
-        self._refresh_output(copy_to_clipboard=False)
+
+        self._refresh_output(
+            copy_to_clipboard=False,
+        )
 
         self.title_entry.focus_set()
-        self.title_entry.icursor("end")
+
+        self.title_entry.icursor(
+            "end"
+        )
 
     # ============================================================
     # UI helpers
     # ============================================================
 
-    def _card(self, parent, title: str):
-        card = ctk.CTkFrame(parent, corner_radius=12)
+    def _card(
+        self,
+        parent,
+        title: str,
+    ):
+
+        card = ctk.CTkFrame(
+            parent,
+            corner_radius=12,
+        )
+
         ctk.CTkLabel(
             card,
             text=title,
             anchor="w",
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=ctk.CTkFont(
+                size=14,
+                weight="bold",
+            ),
         ).grid(
             row=0,
             column=0,
@@ -702,74 +1143,261 @@ class H1GeneratorTab(BaseTabPlugin):
             padx=14,
             pady=(12, 8),
         )
+
         return card
 
-    def _select_style(self, style_id: str) -> None:
+    def _select_style(
+        self,
+        style_id: str,
+    ) -> None:
+
         if style_id not in STYLE_DEFS:
             return
 
-        self.style_var.set(style_id)
-        self._refresh_selection_ui()
-        self._schedule_auto_copy(short_delay=True)
+        self.style_var.set(
+            style_id
+        )
 
-    def _select_font(self, font_key: str) -> None:
+        self._refresh_selection_ui()
+
+        self._schedule_auto_copy(
+            short_delay=True,
+        )
+
+    def _select_font(
+        self,
+        font_key: str,
+    ) -> None:
+
         if font_key not in FONT_DEFS:
             return
 
-        self.font_var.set(font_key)
+        self.font_var.set(
+            font_key
+        )
+
         self._refresh_selection_ui()
-        self._schedule_auto_copy(short_delay=True)
 
-    def _refresh_selection_ui(self) -> None:
-        selected_style = self.style_var.get()
-        selected_font = self.font_var.get()
+        self._schedule_auto_copy(
+            short_delay=True,
+        )
 
-        preview_source = self.text_var.get().strip() or "Heading"
+    def _select_alignment(
+        self,
+        alignment_key: str,
+    ) -> None:
 
-        # Keep previews short enough to fit in the cards.
+        if (
+            alignment_key
+            not in ALIGNMENT_DEFS
+        ):
+            return
+
+        self.alignment_var.set(
+            alignment_key
+        )
+
+        self._refresh_selection_ui()
+
+        self._schedule_auto_copy(
+            short_delay=True,
+        )
+
+    def _refresh_selection_ui(
+        self,
+    ) -> None:
+
+        selected_style = (
+            self.style_var.get()
+        )
+
+        selected_font = (
+            self.font_var.get()
+        )
+
+        selected_alignment = (
+            self.alignment_var.get()
+        )
+
+        preview_source = (
+            self.text_var.get().strip()
+            or "Heading"
+        )
+
         if len(preview_source) > 18:
-            preview_source = preview_source[:17] + "…"
+            preview_source = (
+                preview_source[:17]
+                + "…"
+            )
 
-        for style_id, preview in self.preview_widgets.items():
-            preview.set_selected(style_id == selected_style)
-            preview.set_preview(preview_source, selected_font)
+        # ------------------------------------------------------------
+        # Update CSS previews
+        # ------------------------------------------------------------
 
-        for font_key, button in self.font_buttons.items():
+        for (
+            style_id,
+            preview,
+        ) in self.preview_widgets.items():
+
+            preview.set_selected(
+                style_id
+                == selected_style
+            )
+
+            preview.set_preview(
+                preview_source,
+                selected_font,
+                selected_alignment,
+            )
+
+        # ------------------------------------------------------------
+        # Font button selected state
+        # ------------------------------------------------------------
+
+        for (
+            font_key,
+            button,
+        ) in self.font_buttons.items():
+
             if font_key == selected_font:
+
                 button.configure(
-                    fg_color=("#dbeafe", "#1e3a5f"),
-                    border_color=("#3b82f6", "#60a5fa"),
-                    text_color=("#153e75", "#dbeafe"),
+                    fg_color=(
+                        "#dbeafe",
+                        "#1e3a5f",
+                    ),
+                    border_color=(
+                        "#3b82f6",
+                        "#60a5fa",
+                    ),
+                    text_color=(
+                        "#153e75",
+                        "#dbeafe",
+                    ),
                 )
+
             else:
+
                 button.configure(
                     fg_color="transparent",
-                    border_color=("gray70", "gray38"),
-                    text_color=("gray20", "gray88"),
+                    border_color=(
+                        "gray70",
+                        "gray38",
+                    ),
+                    text_color=(
+                        "gray20",
+                        "gray88",
+                    ),
                 )
 
-        self._refresh_output(copy_to_clipboard=False)
+        # ------------------------------------------------------------
+        # Alignment button selected state
+        # ------------------------------------------------------------
+
+        for (
+            alignment_key,
+            button,
+        ) in self.alignment_buttons.items():
+
+            if (
+                alignment_key
+                == selected_alignment
+            ):
+
+                button.configure(
+                    fg_color=(
+                        "#dbeafe",
+                        "#1e3a5f",
+                    ),
+                    border_color=(
+                        "#3b82f6",
+                        "#60a5fa",
+                    ),
+                    text_color=(
+                        "#153e75",
+                        "#dbeafe",
+                    ),
+                )
+
+            else:
+
+                button.configure(
+                    fg_color="transparent",
+                    border_color=(
+                        "gray70",
+                        "gray38",
+                    ),
+                    text_color=(
+                        "gray20",
+                        "gray88",
+                    ),
+                )
+
+        self._refresh_output(
+            copy_to_clipboard=False,
+        )
 
     # ============================================================
     # Output generation
     # ============================================================
 
-    def _transformed_text(self) -> str:
-        value = self.text_var.get()
-        font_key = self.font_var.get()
-        font_info = FONT_DEFS[font_key]
+    def _transformed_text(
+        self,
+    ) -> str:
 
-        if font_info["transform"] == "fraktur":
-            return to_fraktur(value)
+        value = self.text_var.get()
+
+        font_key = (
+            self.font_var.get()
+        )
+
+        font_info = (
+            FONT_DEFS[font_key]
+        )
+
+        if (
+            font_info["transform"]
+            == "fraktur"
+        ):
+            return to_fraktur(
+                value
+            )
 
         return value
 
-    def _generate_html(self) -> str:
-        style_id = self.style_var.get()
-        font_key = self.font_var.get()
+    def _generate_html(
+        self,
+    ) -> str:
 
-        css = STYLE_DEFS[style_id]["css"]
-        font_css = FONT_DEFS[font_key]["css"]
+        style_id = (
+            self.style_var.get()
+        )
+
+        font_key = (
+            self.font_var.get()
+        )
+
+        alignment_key = (
+            self.alignment_var.get()
+        )
+
+        css = (
+            STYLE_DEFS[
+                style_id
+            ]["css"]
+        )
+
+        font_css = (
+            FONT_DEFS[
+                font_key
+            ]["css"]
+        )
+
+        alignment_css = (
+            ALIGNMENT_DEFS[
+                alignment_key
+            ]["css"]
+        )
 
         title = html.escape(
             self._transformed_text(),
@@ -781,92 +1409,209 @@ class H1GeneratorTab(BaseTabPlugin):
             f"{css}\n"
             "</style>\n\n"
             f'<h1 class="rt-h1-style-{style_id}" '
-            f'style="font-family: {font_css};">{title}</h1>'
+            f'style="'
+            f'font-family: {font_css}; '
+            f'text-align: {alignment_css};'
+            f'">'
+            f"{title}"
+            f"</h1>"
         )
 
-    def _refresh_output(self, copy_to_clipboard: bool) -> None:
-        code = self._generate_html()
+    def _refresh_output(
+        self,
+        copy_to_clipboard: bool,
+    ) -> None:
 
-        self.output_text.configure(state="normal")
-        self.output_text.delete("1.0", "end")
-        self.output_text.insert("1.0", code)
-        self.output_text.configure(state="disabled")
+        code = (
+            self._generate_html()
+        )
 
-        if copy_to_clipboard and self.text_var.get().strip():
-            self._copy_code(code)
+        self.output_text.configure(
+            state="normal"
+        )
+
+        self.output_text.delete(
+            "1.0",
+            "end",
+        )
+
+        self.output_text.insert(
+            "1.0",
+            code,
+        )
+
+        self.output_text.configure(
+            state="disabled"
+        )
+
+        if (
+            copy_to_clipboard
+            and
+            self.text_var.get().strip()
+        ):
+
+            self._copy_code(
+                code
+            )
 
     # ============================================================
     # Auto copy
     # ============================================================
 
-    def _on_text_changed(self, *_args) -> None:
-        self._refresh_selection_ui()
-        self._schedule_auto_copy(short_delay=False)
+    def _on_text_changed(
+        self,
+        *_args,
+    ) -> None:
 
-    def _schedule_auto_copy(self, short_delay: bool = False) -> None:
-        if self._copy_after_id is not None:
+        self._refresh_selection_ui()
+
+        self._schedule_auto_copy(
+            short_delay=False,
+        )
+
+    def _schedule_auto_copy(
+        self,
+        short_delay: bool = False,
+    ) -> None:
+
+        if (
+            self._copy_after_id
+            is not None
+        ):
+
             try:
-                self.app.after_cancel(self._copy_after_id)
+                self.app.after_cancel(
+                    self._copy_after_id
+                )
             except Exception:
                 pass
 
-        delay = 80 if short_delay else self.AUTO_COPY_DELAY_MS
+        delay = (
+            80
+            if short_delay
+            else self.AUTO_COPY_DELAY_MS
+        )
 
         self.copy_status.configure(
             text="  Editing…  ",
-            fg_color=("gray88", "gray24"),
-            text_color=("gray30", "gray78"),
+            fg_color=(
+                "gray88",
+                "gray24",
+            ),
+            text_color=(
+                "gray30",
+                "gray78",
+            ),
         )
 
-        self._copy_after_id = self.app.after(
-            delay,
-            self._auto_copy,
+        self._copy_after_id = (
+            self.app.after(
+                delay,
+                self._auto_copy,
+            )
         )
 
-    def _auto_copy(self) -> None:
+    def _auto_copy(
+        self,
+    ) -> None:
+
         self._copy_after_id = None
 
-        if not self.text_var.get().strip():
+        if not (
+            self.text_var
+            .get()
+            .strip()
+        ):
+
             self.copy_status.configure(
                 text="  Empty  ",
-                fg_color=("gray88", "gray24"),
-                text_color=("gray30", "gray78"),
+                fg_color=(
+                    "gray88",
+                    "gray24",
+                ),
+                text_color=(
+                    "gray30",
+                    "gray78",
+                ),
             )
+
             return
 
-        self._refresh_output(copy_to_clipboard=True)
+        self._refresh_output(
+            copy_to_clipboard=True,
+        )
 
-    def _copy_now(self) -> None:
-        code = self._generate_html()
+    def _copy_now(
+        self,
+    ) -> None:
 
-        if not self.text_var.get().strip():
+        code = (
+            self._generate_html()
+        )
+
+        if not (
+            self.text_var
+            .get()
+            .strip()
+        ):
+
             self.copy_status.configure(
                 text="  Empty  ",
-                fg_color=("gray88", "gray24"),
-                text_color=("gray30", "gray78"),
+                fg_color=(
+                    "gray88",
+                    "gray24",
+                ),
+                text_color=(
+                    "gray30",
+                    "gray78",
+                ),
             )
+
             return
 
-        self._copy_code(code)
+        self._copy_code(
+            code
+        )
 
-    def _copy_code(self, code: str) -> None:
+    def _copy_code(
+        self,
+        code: str,
+    ) -> None:
+
         try:
-            self.app.clipboard_clear()
-            self.app.clipboard_append(code)
 
-            # Keep clipboard ownership alive after returning to the event loop.
+            self.app.clipboard_clear()
+
+            self.app.clipboard_append(
+                code
+            )
+
             self.app.update_idletasks()
 
             self.copy_status.configure(
                 text="  Copied ✓  ",
-                fg_color=("#d1fae5", "#14532d"),
-                text_color=("#065f46", "#dcfce7"),
+                fg_color=(
+                    "#d1fae5",
+                    "#14532d",
+                ),
+                text_color=(
+                    "#065f46",
+                    "#dcfce7",
+                ),
             )
+
         except Exception:
+
             self.copy_status.configure(
                 text="  Copy failed  ",
-                fg_color=("#fee2e2", "#7f1d1d"),
-                text_color=("#991b1b", "#fee2e2"),
+                fg_color=(
+                    "#fee2e2",
+                    "#7f1d1d",
+                ),
+                text_color=(
+                    "#991b1b",
+                    "#fee2e2",
+                ),
             )
 
 
