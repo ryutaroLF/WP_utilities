@@ -1,0 +1,5 @@
+.map2svg?cache/*
+tabs/openfreemap_cache/*
+tabs/__pycache__/*
+
+*.svg
